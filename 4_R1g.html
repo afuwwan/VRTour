@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WEBVR - Virtual Tour Museum Brawijaya</title>
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+</head>
+
+<body>
+    <!-- Scripts -->
+    <script src="Scripts/button-component.js"></script>
+
+    <a-scene>
+        <!-- Assets -->
+        <a-assets>
+            <img id="bg" src="./360/R1g.JPG">
+			<img id="arrow" src="./Images/arrow.png">
+
+            <img id="r1g" src="Spesimen/r1g.jpg">
+        </a-assets>
+
+        <!-- Camera Object -->
+        <a-entity position="0 0 0" rotation="0 0 1">
+            <a-camera id="camera" look-controls="" wasd-controls-enabled="false" camera="active:true" 
+            scale="" visible="" fov="80">
+                <a-entity id="cursor" cursor="fuse: true; fuseTimeout: 1500" position="0 0 -1"
+                    raycaster="objects: .itemButton, .itemInfo; far: 50"
+                    geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                    material="color: white; shader: flat"
+                    animation__fusing="property: geometry.radiusOuter; from: 0.050; to: 0.010; startEvents: fusing; easing: easeInQuad; dur: 1000"
+                    animation__fusing2="property: geometry.radiusInner; from: 0.050; to: 0.005; startEvents: fusing; easing: easeInQuad; dur: 1000">
+                </a-entity>
+                <a-entity id="r1g-hud" position="0 0 -1" rotation="0 0 0" visible="false">
+                    <a-plane height="1.05" width="2.05" position="0 0 0" color="#458b74">
+                        <a-image src="#r1g" height="1" width="2"></a-image>
+                    </a-plane>
+                </a-entity>
+            </a-camera>
+        </a-entity>
+
+        <!-- Background -->
+        <a-sky src="#bg"></a-sky>
+
+        <!-- Navigasi -->
+        <a-entity id="item001" position="0 0 0" rotation="90 140 0"> 
+            
+            <a-image class="itemButton" src="#arrow" transparent="true" 
+                position="-1 -3 0.8" rotation="0 0 140"
+                hoverable="color:#db4035"
+                clickable="name:Lanjutkan; target_url:4_R1h.html">
+            </a-image>
+
+            <a-text font="kelsonsans" width="8" align="center" 
+                value="Lanjutkan" color="white"
+                position="-1 -4 2.5" rotation="0 180 -140">
+            </a-text>
+
+        </a-entity>
+        
+        <!-- Kembali -->
+        <a-entity id="item002" position="0 0 0" rotation="90 140 0"> 
+            <a-image class="itemButton" src="#arrow" transparent="true"
+                position="-4 -0.5 0.8" rotation="0 0 140"
+                hoverable="color:#db4035"
+                clickable="name:Kembali; target_url:4_R1f.html">
+            </a-image>
+
+            <a-text font="kelsonsans" width="6" align="center" 
+                value="Kembali" color="white"
+                position="-3.5 0 0.8" rotation="0 180 -140">
+            </a-text>
+
+        </a-entity>
+
+        <a-entity id="spesimen003" position="-3. 2.25 1.1" rotation="0 90 0"> 
+            
+			<a-plane class="itemInfo" opacity="0.3" color="yellow"
+                position="1.1 -0.8 0" rotation="0 0 0" width="0.8" height="0.8"
+                info-block="name:r1g; target_id:r1g-hud">
+                <a-text value="View" align="center" width="3" position="0 0 0"></a-text>
+            </a-plane>
+
+        </a-entity>
+
+    </a-scene>
+
+</body>
+
+</html>

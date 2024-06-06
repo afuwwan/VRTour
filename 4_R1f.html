@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WEBVR - Virtual Tour Museum Brawijaya</title>
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
+</head>
+
+<body>
+    <!-- Scripts -->
+    <script src="Scripts/button-component.js"></script>
+
+    <a-scene>
+        <!-- Assets -->
+        <a-assets>
+            <img id="bg" src="./360/R1f.JPG">
+			<img id="arrow" src="./Images/arrow.png">
+        </a-assets>
+
+        <!-- Camera Object -->
+        <a-entity position="0 0 0" rotation="-2 90 0">
+            <a-camera id="camera" look-controls="" wasd-controls-enabled="false" camera="active:true" 
+            scale="" visible="" fov="80">
+            <a-entity id="cursor" cursor="fuse: true; fuseTimeout: 1500" position="0 0 -1"
+                raycaster="objects: .itemButton, .itemInfo; far: 50"
+                geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02"
+                material="color: white; shader: flat"
+                animation__fusing="property: geometry.radiusOuter; from: 0.050; to: 0.010; startEvents: fusing; easing: easeInQuad; dur: 1000"
+                animation__fusing2="property: geometry.radiusInner; from: 0.050; to: 0.005; startEvents: fusing; easing: easeInQuad; dur: 1000">
+            </a-entity>
+        </a-entity>
+
+        <!-- Background -->
+        <a-sky src="#bg"></a-sky>
+
+        <!-- Navigasi -->
+        <a-entity id="item001" position="0 0 0" rotation="90 140 0"> 
+            
+            <a-image class="itemButton" src="#arrow" transparent="true" 
+                position="2.5 -2.3 0.8" rotation="0 0 -134"
+                hoverable="color:#db4035"
+                clickable="name:Lanjutkan; target_url:4_R1g.html">
+            </a-image>
+
+            <a-text font="kelsonsans" width="8" align="center" 
+                value="Lanjutkan" color="white"
+                position="2.9 -2.65 2" rotation="0 180 133">
+            </a-text>
+
+        </a-entity>
+        
+        <!-- Kembali -->
+        <a-entity id="item002" position="0 0 0" rotation="90 140 0"> 
+            <a-image class="itemButton" src="#arrow" transparent="true"
+                position="-2 2 0" rotation="1 0 47"
+                hoverable="color:#db4035"
+                clickable="name:Kembali; target_url:4_R1e.html">
+            </a-image>
+
+            <a-text font="kelsonsans" width="6" align="center" 
+                value="Kembali" color="white"
+                position="-1.50 1.5 0" rotation="-3 180 -50">
+            </a-text>
+
+        </a-entity>
+
+    </a-scene>
+
+</body>
+
+</html>
