@@ -254,14 +254,21 @@ async function loadSceneDynamic(url, isPopState = false) {
             }
         }
         
-        // 6. Clean up scene: remove everything except camera wrapper and assets
+        // 6. Clean up scene: remove everything except camera wrapper, assets, canvas, and VR overlays
         const activeScene = document.querySelector('a-scene');
         const activeWrapper = activeCamera ? activeCamera.parentElement : null;
         const activeAssets = document.querySelector('a-assets');
         
         const sceneChildren = Array.from(activeScene.children);
         sceneChildren.forEach(child => {
-            if (child !== activeWrapper && child !== activeAssets) {
+            const tagName = child.tagName.toLowerCase();
+            if (
+                child !== activeWrapper && 
+                tagName !== 'a-assets' && 
+                tagName !== 'canvas' && 
+                tagName !== 'div' &&
+                !child.hasAttribute('data-aframe-default-light')
+            ) {
                 activeScene.removeChild(child);
             }
         });
