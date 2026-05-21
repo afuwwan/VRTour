@@ -37,6 +37,15 @@ AFRAME.registerComponent('clickable', {
 
         el.addEventListener('click', function () {
             console.log("Go to", data.target_url);
+            
+            // Check if VR mode is active
+            var scene = document.querySelector('a-scene');
+            if (scene && scene.is('vr-mode')) {
+                // Save VR state and navigate
+                sessionStorage.setItem('vrModeActive', 'true');
+                console.log("VR mode detected - saving state");
+            }
+            
             location.replace(data.target_url);
         })
 
