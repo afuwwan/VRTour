@@ -82,15 +82,25 @@ class DynamicNavigationManager {
     }
 
     updateSkyImage(imagePath) {
-        const bgImg = document.getElementById('bg');
-        if (bgImg) {
-            bgImg.setAttribute('src', imagePath);
+        console.log("Updating sky image to:", imagePath);
+        
+        const sky = document.querySelector('a-sky');
+        if (!sky) {
+            console.warn("Sky element not found");
+            return;
         }
 
-        const sky = document.querySelector('a-sky');
-        if (sky) {
-            sky.setAttribute('src', '#bg');
-        }
+        // Completely reload the sky by removing and recreating
+        sky.parentNode.removeChild(sky);
+        
+        const newSky = document.createElement('a-sky');
+        newSky.setAttribute('src', imagePath);
+        newSky.setAttribute('rotation', '0 0 0');
+        
+        const scene = this.scene;
+        scene.insertBefore(newSky, scene.querySelector('a-entity'));
+        
+        console.log("Sky reloaded with new image:", imagePath);
     }
 
     updateNavigationItems(items) {
