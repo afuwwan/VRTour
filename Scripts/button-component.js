@@ -23,7 +23,8 @@ AFRAME.registerComponent('hoverable', {
 AFRAME.registerComponent('clickable', {
     schema: {
         name: {type: 'string', default: "nameless"},
-        target_url: {type: 'string', default: ""}
+        target_url: {type: 'string', default: ""},
+        target_room: {type: 'string', default: ""}
     },
 
     init: function(){
@@ -36,17 +37,18 @@ AFRAME.registerComponent('clickable', {
         })
 
         el.addEventListener('click', function () {
-            console.log("Go to", data.target_url);
-            
-            // Check if VR mode is active
-            var scene = document.querySelector('a-scene');
-            if (scene && scene.is('vr-mode')) {
-                // Save VR state and navigate
-                sessionStorage.setItem('vrModeActive', 'true');
-                console.log("VR mode detected - saving state");
+            // Use dynamic navigation if target_room is specified
+            if (data.target_room) {
+                console.log("Navigate to room:", data.target_room);
+                if (navigationManager) {
+                    navigationManager.navigateToRoom(data.target_room);
+                }
+            } 
+            // Fallback to page navigation for legacy support
+            else if (data.target_url) {
+                console.log("Go to", data.target_url);
+                location.replace(data.target_url);
             }
-            
-            location.replace(data.target_url);
         })
 
     }
