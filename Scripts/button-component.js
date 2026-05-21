@@ -287,6 +287,28 @@ async function loadSceneDynamic(url, isPopState = false) {
         if (!isPopState) {
             window.history.pushState({}, '', url);
         }
+
+        // Reset cursor and raycaster states to prevent stuck states from deleted elements
+        const cursorEl = document.querySelector('#cursor') || document.querySelector('[cursor]');
+        if (cursorEl) {
+            // Reset geometry to defaults to clear any mid-animation scales
+            cursorEl.setAttribute('geometry', {
+                primitive: 'ring',
+                radiusInner: 0.01,
+                radiusOuter: 0.02
+            });
+            // Stop and play components to reset internal event listeners/states
+            if (cursorEl.components && cursorEl.components.cursor) {
+                cursorEl.components.cursor.pause();
+                cursorEl.components.cursor.intersectedEl = null;
+                cursorEl.components.cursor.play();
+            }
+            if (cursorEl.components && cursorEl.components.raycaster) {
+                cursorEl.components.raycaster.pause();
+                cursorEl.components.raycaster.refresh();
+                cursorEl.components.raycaster.play();
+            }
+        }
         
         console.log("Successfully transitioned dynamically!");
         
