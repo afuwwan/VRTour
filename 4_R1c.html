@@ -2,6 +2,10 @@
 <html>
 
 <head>
+    <script>
+        // Redirect to index.html with hash routing for SPA WebXR mode
+        window.location.replace("index.html#" + window.location.pathname.split('/').pop());
+    </script>
     <title>WEBVR - Virtual Tour Museum Brawijaya</title>
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
 </head>

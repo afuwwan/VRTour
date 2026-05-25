@@ -38,7 +38,8 @@ AFRAME.registerComponent('clickable', {
         el.addEventListener('click', function () {
             console.log("Go to", data.target_url);
             if (data.target_url) {
-                loadSceneDynamic(data.target_url);
+                // Update hash to trigger scene render without page reload
+                window.location.hash = data.target_url;
             }
         })
 
@@ -105,12 +106,7 @@ function getOrCreateFadeOverlay() {
             overlay.setAttribute('width', '2');
             overlay.setAttribute('height', '2');
             overlay.setAttribute('color', 'black');
-            overlay.setAttribute('material', {
-                shader: 'flat',
-                transparent: true,
-                opacity: 0,
-                depthTest: false
-            });
+            overlay.setAttribute('material', 'shader: flat; transparent: true; opacity: 0; depthTest: false');
             overlay.setAttribute('visible', false);
             camera.appendChild(overlay);
         }
@@ -125,14 +121,14 @@ function animateOpacity(el, from, to, duration) {
             return;
         }
         el.setAttribute('visible', true);
-        el.setAttribute('material', 'opacity', from);
+        el.setAttribute('material', { opacity: from });
         
         const startTime = performance.now();
         
         function tick(now) {
             const progress = Math.min((now - startTime) / duration, 1);
             const currentOpacity = from + (to - from) * progress;
-            el.setAttribute('material', 'opacity', currentOpacity);
+            el.setAttribute('material', { opacity: currentOpacity });
             
             if (progress < 1) {
                 requestAnimationFrame(tick);
@@ -148,124 +144,79 @@ function animateOpacity(el, from, to, duration) {
     });
 }
 
-function cleanCloneElement(element) {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = element.outerHTML;
-    return tempDiv.firstElementChild;
-}
-
-function resolveAssetUrl(doc, srcAttribute) {
-    if (srcAttribute.startsWith('#')) {
-        const assetId = srcAttribute.substring(1);
-        const assetEl = doc.getElementById(assetId);
-        if (assetEl) {
-            return assetEl.getAttribute('src');
-        }
-    }
-    return srcAttribute;
-}
-
-function cloneAndResolveElement(targetDoc, element) {
-    const cleanEl = cleanCloneElement(element);
-    
-    function resolve(el) {
-        if (el.hasAttribute('src')) {
-            const src = el.getAttribute('src');
-            if (src && src.startsWith('#')) {
-                const resolved = resolveAssetUrl(targetDoc, src);
-                if (resolved) {
-                    el.setAttribute('src', resolved);
-                }
-            }
-        }
+function resetCursor() {
+    const cursorEl = document.querySelector('#cursor') || document.querySelector('[cursor]');
+    if (cursorEl) {
+        cursorEl.setAttribute('geometry', {
+            primitive: 'ring',
+            radiusInner: 0.01,
+            radiusOuter: 0.02
+        });
         
-        // Also recursively handle children
-        for (let child of el.children) {
-            resolve(child);
+        // Force A-Frame raycaster component to refresh its target object cache
+        cursorEl.setAttribute('raycaster', 'objects', '.itemButton, .itemInfo');
+        
+        if (cursorEl.components && cursorEl.components.cursor) {
+            cursorEl.components.cursor.pause();
+            cursorEl.components.cursor.intersectedEl = null;
+            cursorEl.components.cursor.play();
+        }
+        if (cursorEl.components && cursorEl.components.raycaster) {
+            cursorEl.components.raycaster.pause();
+            if (typeof cursorEl.components.raycaster.refreshObjects === 'function') {
+                cursorEl.components.raycaster.refreshObjects();
+            }
+            cursorEl.components.raycaster.play();
         }
     }
-    
-    resolve(cleanEl);
-    return cleanEl;
 }
 
-async function loadSceneDynamic(url, isPopState = false) {
-    console.log("Dynamically transitioning to:", url);
+async function renderTourScene(sceneId) {
+    console.log("SPA rendering scene:", sceneId);
+    
+    // Check if TOUR_DATA is available
+    if (typeof TOUR_DATA === 'undefined') {
+        console.error("TOUR_DATA is not defined. Make sure Scripts/tour-data.js is loaded.");
+        return;
+    }
+    
+    const data = TOUR_DATA[sceneId];
+    if (!data) {
+        console.error("No data found for scene:", sceneId);
+        return;
+    }
     
     const overlay = getOrCreateFadeOverlay();
-    
-    // 1. Fade to black
     if (overlay) {
-        await animateOpacity(overlay, 0, 1, 300);
+        await animateOpacity(overlay, 0, 1, 250);
     }
     
     try {
-        // 2. Fetch the target HTML file
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error("Failed to fetch page: " + response.statusText);
-        }
-        const htmlText = await response.text();
-        
-        // 3. Parse the fetched HTML
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(htmlText, 'text/html');
-        const targetScene = doc.querySelector('a-scene');
-        
-        if (!targetScene) {
-            throw new Error("No a-scene found in target page");
-        }
-        
-        // 4. Resolve and update HUD elements in the active camera
-        const activeCamera = document.querySelector('a-camera');
-        if (activeCamera) {
-            // Remove current HUD elements (children that are not the cursor or the fade overlay)
-            const cameraChildren = Array.from(activeCamera.children);
-            cameraChildren.forEach(child => {
-                if (child.id !== 'cursor' && child.id !== 'fade-overlay') {
-                    activeCamera.removeChild(child);
-                }
-            });
-            
-            // Clone and add target HUD elements
-            const targetCamera = targetScene.querySelector('a-camera');
-            if (targetCamera) {
-                for (let child of targetCamera.children) {
-                    if (child.id !== 'cursor' && child.id !== 'fade-overlay') {
-                        const cleanChild = cloneAndResolveElement(doc, child);
-                        activeCamera.appendChild(cleanChild);
-                    }
-                }
-            }
-        }
-        
-        // 5. Update camera wrapper (parent of a-camera) position/rotation
-        if (activeCamera) {
-            const activeWrapper = activeCamera.parentElement;
-            const targetCamera = targetScene.querySelector('a-camera');
-            const targetWrapper = targetCamera ? targetCamera.parentElement : null;
-            if (activeWrapper && targetWrapper) {
-                if (targetWrapper.hasAttribute('position')) {
-                    activeWrapper.setAttribute('position', targetWrapper.getAttribute('position'));
-                }
-                if (targetWrapper.hasAttribute('rotation')) {
-                    activeWrapper.setAttribute('rotation', targetWrapper.getAttribute('rotation'));
-                }
-            }
-        }
-        
-        // 6. Clean up scene: remove everything except camera wrapper, assets, canvas, and VR overlays
         const activeScene = document.querySelector('a-scene');
+        const activeCamera = document.querySelector('a-camera');
         const activeWrapper = activeCamera ? activeCamera.parentElement : null;
-        const activeAssets = document.querySelector('a-assets');
         
-        const sceneChildren = Array.from(activeScene.children);
-        sceneChildren.forEach(child => {
+        // 1. Update sky background
+        const skyEl = document.querySelector('a-sky');
+        if (skyEl && data.skySrc) {
+            skyEl.setAttribute('src', data.skySrc);
+        }
+        
+        // 2. Update camera wrapper position/rotation
+        if (activeWrapper && data.cameraWrapper) {
+            activeWrapper.setAttribute('position', data.cameraWrapper.position);
+            activeWrapper.setAttribute('rotation', data.cameraWrapper.rotation);
+        }
+        
+        // 3. Clear old dynamic elements from scene (keeping sky, wrapper, canvas, and overlays)
+        const children = Array.from(activeScene.children);
+        children.forEach(child => {
             const tagName = child.tagName.toLowerCase();
             if (
-                child !== activeWrapper && 
-                tagName !== 'a-assets' && 
-                tagName !== 'canvas' && 
+                child !== activeWrapper &&
+                tagName !== 'a-sky' &&
+                tagName !== 'a-assets' &&
+                tagName !== 'canvas' &&
                 tagName !== 'div' &&
                 !child.hasAttribute('data-aframe-default-light')
             ) {
@@ -273,61 +224,206 @@ async function loadSceneDynamic(url, isPopState = false) {
             }
         });
         
-        // 7. Add new elements from target scene
-        for (let child of targetScene.children) {
-            const tagName = child.tagName.toLowerCase();
-            // Skip camera wrapper, assets, and canvas (which A-Frame injects at runtime)
-            if (tagName !== 'a-assets' && tagName !== 'canvas' && !child.querySelector('a-camera')) {
-                const cleanChild = cloneAndResolveElement(doc, child);
-                activeScene.appendChild(cleanChild);
-            }
-        }
-        
-        // 8. Update history if this is not from back/forward buttons
-        if (!isPopState) {
-            window.history.pushState({}, '', url);
-        }
-
-        // Reset cursor and raycaster states to prevent stuck states from deleted elements
-        const cursorEl = document.querySelector('#cursor') || document.querySelector('[cursor]');
-        if (cursorEl) {
-            // Reset geometry to defaults to clear any mid-animation scales
-            cursorEl.setAttribute('geometry', {
-                primitive: 'ring',
-                radiusInner: 0.01,
-                radiusOuter: 0.02
+        // 4. Clear old HUD elements from camera (except cursor and overlay)
+        if (activeCamera) {
+            const cameraChildren = Array.from(activeCamera.children);
+            cameraChildren.forEach(child => {
+                if (child.id !== 'cursor' && child.id !== 'fade-overlay') {
+                    activeCamera.removeChild(child);
+                }
             });
-            // Stop and play components to reset internal event listeners/states
-            if (cursorEl.components && cursorEl.components.cursor) {
-                cursorEl.components.cursor.pause();
-                cursorEl.components.cursor.intersectedEl = null;
-                cursorEl.components.cursor.play();
-            }
-            if (cursorEl.components && cursorEl.components.raycaster) {
-                cursorEl.components.raycaster.pause();
-                cursorEl.components.raycaster.refresh();
-                cursorEl.components.raycaster.play();
-            }
         }
         
-        console.log("Successfully transitioned dynamically!");
+        // 5. Render Welcome text
+        if (data.welcomeText && data.welcomeText.text) {
+            const textWrap = document.createElement('a-entity');
+            textWrap.setAttribute('id', data.welcomeText.id);
+            textWrap.setAttribute('position', data.welcomeText.position);
+            textWrap.setAttribute('rotation', data.welcomeText.rotation);
+            
+            const textEl = document.createElement('a-text');
+            const txtData = data.welcomeText.text;
+            textEl.setAttribute('value', txtData.value);
+            textEl.setAttribute('position', txtData.position);
+            textEl.setAttribute('rotation', txtData.rotation);
+            textEl.setAttribute('width', txtData.width);
+            textEl.setAttribute('align', txtData.align);
+            textEl.setAttribute('font', txtData.font);
+            
+            textWrap.appendChild(textEl);
+            activeScene.appendChild(textWrap);
+        }
+        
+        // 6. Render Navigation items
+        if (data.navs) {
+            data.navs.forEach(nav => {
+                const navWrap = document.createElement('a-entity');
+                navWrap.setAttribute('id', nav.id);
+                navWrap.setAttribute('position', nav.position);
+                navWrap.setAttribute('rotation', nav.rotation);
+                navWrap.setAttribute('scale', nav.scale);
+                
+                if (nav.button) {
+                    const imgEl = document.createElement('a-image');
+                    imgEl.setAttribute('class', 'itemButton');
+                    imgEl.setAttribute('src', nav.button.src);
+                    imgEl.setAttribute('position', nav.button.position);
+                    imgEl.setAttribute('rotation', nav.button.rotation);
+                    imgEl.setAttribute('scale', nav.button.scale);
+                    imgEl.setAttribute('transparent', 'true');
+                    
+                    if (nav.button.hoverable) {
+                        imgEl.setAttribute('hoverable', `color: ${nav.button.hoverable.color || 'red'}`);
+                    }
+                    if (nav.button.clickable) {
+                        imgEl.setAttribute('clickable', `name: ${nav.button.clickable.name || 'nameless'}; target_url: ${nav.button.clickable.target_url || ''}`);
+                    }
+                    
+                    navWrap.appendChild(imgEl);
+                }
+                
+                if (nav.text) {
+                    const textEl = document.createElement('a-text');
+                    textEl.setAttribute('value', nav.text.value);
+                    textEl.setAttribute('position', nav.text.position);
+                    textEl.setAttribute('rotation', nav.text.rotation);
+                    textEl.setAttribute('scale', nav.text.scale);
+                    textEl.setAttribute('color', nav.text.color);
+                    textEl.setAttribute('font', nav.text.font);
+                    textEl.setAttribute('width', nav.text.width);
+                    textEl.setAttribute('align', nav.text.align);
+                    
+                    navWrap.appendChild(textEl);
+                }
+                
+                activeScene.appendChild(navWrap);
+            });
+        }
+        
+        // 7. Render Specimen Hotspots
+        if (data.specimens) {
+            data.specimens.forEach(spec => {
+                const specWrap = document.createElement('a-entity');
+                specWrap.setAttribute('id', spec.id);
+                specWrap.setAttribute('position', spec.position);
+                specWrap.setAttribute('rotation', spec.rotation);
+                specWrap.setAttribute('scale', spec.scale);
+                
+                if (spec.plane) {
+                    const planeEl = document.createElement('a-plane');
+                    planeEl.setAttribute('class', 'itemInfo');
+                    planeEl.setAttribute('position', spec.plane.position);
+                    planeEl.setAttribute('rotation', spec.plane.rotation);
+                    planeEl.setAttribute('width', spec.plane.width);
+                    planeEl.setAttribute('height', spec.plane.height);
+                    planeEl.setAttribute('opacity', spec.plane.opacity);
+                    planeEl.setAttribute('color', spec.plane.color);
+                    
+                    if (spec.plane.infoBlock) {
+                        planeEl.setAttribute('info-block', `name: ${spec.plane.infoBlock.name || 'nameless'}; target_id: ${spec.plane.infoBlock.target_id || 'unknown'}`);
+                    }
+                    
+                    if (spec.plane.texts) {
+                        spec.plane.texts.forEach(txt => {
+                            const textEl = document.createElement('a-text');
+                            textEl.setAttribute('value', txt.value);
+                            textEl.setAttribute('position', txt.position);
+                            textEl.setAttribute('rotation', txt.rotation);
+                            textEl.setAttribute('scale', txt.scale);
+                            textEl.setAttribute('width', txt.width);
+                            textEl.setAttribute('align', txt.align);
+                            
+                            planeEl.appendChild(textEl);
+                        });
+                    }
+                    
+                    specWrap.appendChild(planeEl);
+                }
+                
+                activeScene.appendChild(specWrap);
+            });
+        }
+        
+        // 8. Render HUD Panels inside active camera
+        if (activeCamera && data.huds) {
+            data.huds.forEach(hud => {
+                const hudWrap = document.createElement('a-entity');
+                hudWrap.setAttribute('id', hud.id);
+                hudWrap.setAttribute('position', hud.position);
+                hudWrap.setAttribute('rotation', hud.rotation);
+                hudWrap.setAttribute('scale', hud.scale);
+                hudWrap.setAttribute('visible', 'false');
+                
+                if (hud.plane) {
+                    const planeEl = document.createElement('a-plane');
+                    planeEl.setAttribute('position', hud.plane.position);
+                    planeEl.setAttribute('rotation', hud.plane.rotation);
+                    planeEl.setAttribute('width', hud.plane.width);
+                    planeEl.setAttribute('height', hud.plane.height);
+                    planeEl.setAttribute('color', hud.plane.color);
+                    
+                    if (hud.plane.image) {
+                        const imgEl = document.createElement('a-image');
+                        imgEl.setAttribute('src', hud.plane.image.src);
+                        imgEl.setAttribute('position', hud.plane.image.position);
+                        imgEl.setAttribute('rotation', hud.plane.image.rotation);
+                        imgEl.setAttribute('width', hud.plane.image.width);
+                        imgEl.setAttribute('height', hud.plane.image.height);
+                        
+                        planeEl.appendChild(imgEl);
+                    }
+                    
+                    hudWrap.appendChild(planeEl);
+                }
+                
+                activeCamera.appendChild(hudWrap);
+            });
+        }
+        
+        // 9. Reset cursor to avoid stuck state
+        resetCursor();
         
     } catch (err) {
-        console.warn("Dynamic transition failed. Falling back to normal navigation:", err);
-        // Fallback: standard page navigation
-        window.location.href = url;
-        return;
+        console.error("Error rendering SPA tour scene:", err);
     }
     
-    // 9. Fade back in
     if (overlay) {
-        await animateOpacity(overlay, 1, 0, 300);
+        await animateOpacity(overlay, 1, 0, 250);
     }
 }
 
-// Listen for browser back/forward buttons
-window.addEventListener('popstate', function () {
-    const path = window.location.pathname;
-    const filename = path.split('/').pop() || 'index.html';
-    loadSceneDynamic(filename, true);
-});
+// Initialise hash routing when DOM and A-Frame are loaded
+function initSPA() {
+    console.log("SPA Engine initialized. Active hash:", window.location.hash);
+    
+    // Listen for hash changes
+    window.addEventListener('hashchange', () => {
+        const sceneId = window.location.hash.substring(1) || 'index.html';
+        renderTourScene(sceneId);
+    });
+    
+    // Load initial scene
+    const initialScene = window.location.hash.substring(1) || 'index.html';
+    if (initialScene !== 'index.html') {
+        renderTourScene(initialScene);
+    } else {
+        // Prepare overlay for first dynamic transition
+        getOrCreateFadeOverlay();
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        const sceneEl = document.querySelector('a-scene');
+        if (sceneEl) {
+            if (sceneEl.hasLoaded) initSPA();
+            else sceneEl.addEventListener('loaded', initSPA);
+        }
+    });
+} else {
+    const sceneEl = document.querySelector('a-scene');
+    if (sceneEl) {
+        if (sceneEl.hasLoaded) initSPA();
+        else sceneEl.addEventListener('loaded', initSPA);
+    }
+}
